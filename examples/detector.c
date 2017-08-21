@@ -571,6 +571,7 @@ void validate_detector_recall(char *cfgfile, char *weightfile)
     }
 }
 
+// 测试的
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen)
 {
     list *options = read_data_cfg(datacfg);
@@ -591,6 +592,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     float nms=.3;
     while(1){
         if(filename){
+			printf("ll debug got image: %s...\n", filename);
+			
             strncpy(input, filename, 256);
         } else {
             printf("Enter Image Path: ");
@@ -625,10 +628,15 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         //else if (nms) do_nms_sort(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, masks, names, alphabet, l.classes);
         if(outfile){
+			//printf("ll debug save to file: %s...\n", outfile);
             save_image(im, outfile);
         }
         else{
-            save_image(im, "predictions");
+			// 根据输入文件名称，修改输出图片文件，这样更方便 
+			char outfilename[32] = {0};
+			sprintf(outfilename, "%s_predict", filename);
+            save_image(im, outfilename);
+			// 利用opencv显示图片
 #ifdef OPENCV
             cvNamedWindow("predictions", CV_WINDOW_NORMAL); 
             if(fullscreen){
