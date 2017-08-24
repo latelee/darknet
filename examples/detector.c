@@ -571,8 +571,173 @@ void validate_detector_recall(char *cfgfile, char *weightfile)
     }
 }
 
-// 测试的
+#include <dirent.h>
+#include <sys/types.h> 
+#include <sys/stat.h> 
+int filter_fn(const struct dirent *dirp)
+{
+    if(dirp->d_type != DT_REG)
+        return 0;
+
+    return (strncmp(dirp->d_name + (strlen(dirp->d_name) - 4), "jpeg", 4) == 0 ||
+            strncmp(dirp->d_name + (strlen(dirp->d_name) - 3), "jpg", 3) == 0 || 
+            strncmp(dirp->d_name + (strlen(dirp->d_name) - 3), "bmp", 3) == 0 ||
+            strncmp(dirp->d_name + (strlen(dirp->d_name) - 3), "png", 3) == 0
+            );
+}
+
+void make_dir_exist(char* dir)
+{
+	DIR *dp = NULL;
+    dp = opendir(dir);
+	if (!dp)
+		mkdir(dir, 0775);
+	closedir(dp);
+}
+
+static void test_singlefile(char *dir, char *infile, char* outfile, char **names, image **alphabet, network net, float thresh, float hier_thresh, int fullscreen)
+{
+    srand(2222222);
+    double time;
+    int j;
+    float nms=.3;
+
+    char infilename[256] = {0};
+    char outfilename[256] = {0};
+    
+    memset(infilename, '\0', 256);
+    memset(outfilename, '\0', 256);
+
+    if (dir)
+        sprintf(infilename, "%s/%s", dir, infile);
+    else
+        sprintf(infilename, "%s", infile);
+
+    image im = load_image_color(infilename,0,0);
+    image sized = letterbox_image(im, net.w, net.h);
+    
+    image imclone = copy_image(im);
+    if(im.c == 3) rgbgr_image(imclone);
+        
+    //image sized = resize_image(im, net.w, net.h);
+    //image sized2 = resize_max(im, net.w);
+    //image sized = crop_image(sized2, -((net.w - sized2.w)/2), -((net.h - sized2.h)/2), net.w, net.h);
+    //resize_network(&net, sized.w, sized.h);
+    layer l = net.layers[net.n-1];
+
+    box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
+    float **probs = calloc(l.w*l.h*l.n, sizeof(float *));
+    for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = calloc(l.classes + 1, sizeof(float *));
+    float **masks = 0;
+    if (l.coords > 4){
+        masks = calloc(l.w*l.h*l.n, sizeof(float*));
+        for(j = 0; j < l.w*l.h*l.n; ++j) masks[j] = calloc(l.coords-4, sizeof(float *));
+    }
+
+    float *X = sized.data;
+    time=what_time_is_it_now();
+    network_predict(net, X);
+    
+    printf("%s: Predicted in %f seconds.\n", infile, what_time_is_it_now()-time);
+//    printf("ll debug: %dx%d %dx%d %dx%d...\n", im.w, im.h, net.w, net.h, l.w, l.h);
+    get_region_boxes(l, im.w, im.h, net.w, net.h, thresh, probs, boxes, masks, 0, 0, hier_thresh, 1);
+    if (nms) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
+    //else if (nms) do_nms_sort(boxes, probs, l.w*l.h*l.n, l.classes, nms);
+
+    int box_num = 10; // asume there are 10 box in an image
+    imagebox mybox[10];
+
+    draw_detections2(im, l.w*l.h*l.n, thresh, boxes, probs, masks, names, alphabet, l.classes, &mybox, &box_num);
+
+   // only save imge file
+    if(outfile)
+    {
+        //printf("ll debug save to file: %s...\n", outfile);
+        save_image2(im, outfile);
+        goto out;
+    }
+    else
+    {
+        sprintf(infilename, "%s/result", dir);
+        make_dir_exist(infilename);
+        sprintf(outfilename, "%s/%s_predict.jpg", infilename, infile);
+        save_image2(im, outfilename);
+    }
+
+    image carimg; // for car...
+
+    sprintf(infilename, "%s/result_car", dir);
+    make_dir_exist(infilename);
+        
+    for (j = 0; j < box_num; j++)
+    {
+        carimg = copy_image(imclone);
+        if(imclone.c == 3) rgbgr_image(carimg);
+        sprintf(outfilename, "%s/%s_%d.jpg", infilename, infile, j);
+        printf("saving to file: %s %dx%d\n", outfilename, mybox[j].width, mybox[j].height);
+        save_image_jpg3(mybox[j].x, mybox[j].y, mybox[j].width, mybox[j].height, carimg, outfilename);
+        
+        free_image(carimg);
+    }
+
+out:
+    free_image(im);
+    free_image(sized);
+    free(boxes);
+    free_ptrs((void **)probs, l.w*l.h*l.n);
+}
+
+// add by Late Lee
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen)
+{
+    list *options = read_data_cfg(datacfg);
+    char *name_list = option_find_str(options, "names", "data/names.list");
+    char **names = get_labels(name_list);
+
+    image **alphabet = load_alphabet();
+    network net = parse_network_cfg(cfgfile);
+    
+    if(weightfile){
+        load_weights(&net, weightfile);
+    }
+    set_batch_network(&net, 1);
+    
+    char* dir = NULL;
+    DIR *dp = NULL;
+    
+    dp = opendir(filename);
+    // dir
+    if (!dp) //   S_ISDIR(s_buf.st_mode)
+    {
+        char outfilename[256] = {0};
+        sprintf(outfilename, "%s_predict.jpg", filename);
+        test_singlefile(NULL, filename, outfilename, names, alphabet, net, thresh, hier_thresh, fullscreen);
+    }
+    else
+    {
+        dir = filename;
+        struct dirent **namelist;
+        int num = 0;
+        int i = 0;
+		
+        num = scandir(dir, &namelist, filter_fn, alphasort);
+        
+        printf("got total file: %d\n", num);
+        for (int i = 0; i < num; i++)
+        {
+            if(strcmp(namelist[i]->d_name, ".")==0 || strcmp(namelist[i]->d_name, "..")==0)
+                continue;            
+            printf("[%d] processing file: %s\n", i, namelist[i]->d_name);
+            test_singlefile(dir, namelist[i]->d_name, NULL, names, alphabet, net, thresh, hier_thresh, fullscreen);
+            
+            free(namelist[i]);
+        }
+        free(namelist);
+    }
+}
+
+// org
+void test_detector1(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen)
 {
     list *options = read_data_cfg(datacfg);
     char *name_list = option_find_str(options, "names", "data/names.list");
@@ -590,6 +755,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     char *input = buff;
     int j;
     float nms=.3;
+
     while(1){
         if(filename){
 			printf("ll debug got image: %s...\n", filename);

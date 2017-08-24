@@ -551,6 +551,14 @@ typedef struct{
     float left, right, top, bottom;
 } box_label;
 
+// my box for image
+typedef struct {
+    int x;
+    int y;
+    int width;
+    int height;
+    char name[32];
+} imagebox;
 
 network load_network(char *cfg, char *weights, int clear);
 network *load_network_p(char *cfg, char *weights, int clear);
@@ -661,6 +669,12 @@ int resize_network(network *net, int w, int h);
 void free_matrix(matrix m);
 void test_resize(char *filename);
 void save_image(image p, const char *name);
+void save_image2(image p, const char *name);
+
+// crop (w, h) region from (x, y) in image p, save to file name
+void save_image_jpg3(int x, int y, int w, int h, image p, const char *name);
+
+
 void show_image(image p, const char *name);
 image copy_image(image p);
 void draw_box_width(image a, int x1, int y1, int x2, int y2, int w, float r, float g, float b);
@@ -689,6 +703,9 @@ data load_all_cifar10();
 box_label *read_boxes(char *filename, int *n);
 box float_to_box(float *f, int stride);
 void draw_detections(image im, int num, float thresh, box *boxes, float **probs, float **masks, char **names, image **alphabet, int classes);
+
+// my
+void draw_detections2(image im, int num, float thresh, box *boxes, float **probs, float **masks, char **names, image **alphabet, int classes, imagebox *mybox, int* box_num);
 
 matrix network_predict_data(network net, data test);
 image **load_alphabet();

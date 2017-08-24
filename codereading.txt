@@ -1,0 +1,2 @@
+
+examples/detector.c文件：test_detector是输入detect的函数

@@ -44,4 +44,10 @@ $ make -j4
 手动指定输出图片文件示例：
 ./darknet detect cfg/yolo.cfg yolo.weights testimg/pic3.jpg -out testimg/pic3_p.jpg
 
+=============================================================
+
+log：
+2017-8-24
+批处理目录所有图片，将结果保存成result目录。另外将框出来的车辆保存到result_car目录。
+
 

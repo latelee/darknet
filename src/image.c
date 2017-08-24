@@ -199,7 +199,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
         float prob = probs[i][class];
         if(prob > thresh){
             int width = im.h * .006;
-
+            
             if(0){
                 width = pow(prob, 1./2.)*10+1;
                 alphabet = 0;
@@ -224,7 +224,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             int right = (b.x+b.w/2.)*im.w;
             int top   = (b.y-b.h/2.)*im.h;
             int bot   = (b.y+b.h/2.)*im.h;
-
+            
             if(left < 0) left = 0;
             if(right > im.w-1) right = im.w-1;
             if(top < 0) top = 0;
@@ -247,6 +247,94 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             }
         }
     }
+
+}
+
+void draw_detections2(image im, int num, float thresh, box *boxes, float **probs, float **masks, char **names, image **alphabet, int classes, imagebox *mybox, int* box_num)
+{
+    int i;
+    int max_box = *box_num;
+
+    *box_num = 0;
+    int j = 0;
+
+    //printf("%s<<<<<<<<<<<<<<\n", __func__);
+    for(i = 0; i < num; ++i){
+        int class = max_index(probs[i], classes);
+        float prob = probs[i][class];
+        if(prob > thresh){
+            int width = im.h * .002; // box line width
+            
+            if(0){
+                width = pow(prob, 1./2.)*10+1;
+                alphabet = 0;
+            }
+
+            //printf("%d %s: %.0f%%\n", i, names[class], prob*100);
+            printf("%s: %.0f%%\n", names[class], prob*100);
+            int offset = class*123457 % classes;
+            float red = get_color(2,offset,classes);
+            float green = get_color(1,offset,classes);
+            float blue = get_color(0,offset,classes);
+            float rgb[3];
+
+            //width = prob*20+2;
+
+            rgb[0] = red;
+            rgb[1] = green;
+            rgb[2] = blue;
+            box b = boxes[i];
+
+            int left  = (b.x-b.w/2.)*im.w;
+            int right = (b.x+b.w/2.)*im.w;
+            int top   = (b.y-b.h/2.)*im.h;
+            int bot   = (b.y+b.h/2.)*im.h;
+            
+            if(left < 0) left = 0;
+            if(right > im.w-1) right = im.w-1;
+            if(top < 0) top = 0;
+            if(bot > im.h-1) bot = im.h-1;
+            
+            // show coordinate 
+            //printf("coordinate (%d, %d) (%d, %d) line width: %d\n", left, top, right, bot, width);
+
+            if ((!strcmp(names[class], "bus") ||
+                !strcmp(names[class], "car") ||
+                !strcmp(names[class], "truck"))
+                && j < max_box && 1)
+            {
+                mybox->x = left;
+                mybox->y = top;
+                mybox->width = right - left;
+                mybox->height = bot-top;
+                strncpy(mybox->name, names[class], 32);
+                
+                printf("found[%d] %s (%d, %d) %dx%d...\n", j, names[class], mybox->x, mybox->y, mybox->width, mybox->height);
+
+                mybox++;
+                j++;
+                *box_num = j;
+
+                
+            }
+            draw_box_width(im, left, top, right, bot, width, red, green, blue);
+            if (alphabet) {
+                image label = get_label(alphabet, names[class], (im.h*.03)/10);
+                draw_label(im, top + width, left, label, rgb);
+                free_image(label);
+            }
+            if (masks){
+                image mask = float_to_image(14, 14, 1, masks[i]);
+                image resized_mask = resize_image(mask, b.w*im.w, b.h*im.h);
+                image tmask = threshold_image(resized_mask, .5);
+                embed_image(tmask, im, left, top);
+                free_image(mask);
+                free_image(resized_mask);
+                free_image(tmask);
+            }
+        }
+    }
+    //printf("%s>>>>>>>>>>>>>>>>>>>>>>\n", __func__);
 }
 
 void transpose_image(image im)
@@ -602,6 +690,55 @@ void save_image_jpg(image p, const char *name)
     cvReleaseImage(&disp);
     free_image(copy);
 }
+
+void save_image_jpg2(image p, const char *name)
+{
+    image copy = copy_image(p);
+    if(p.c == 3) rgbgr_image(copy);
+    int x,y,k;
+
+    //char buff[256];
+    //sprintf(buff, "%s.jpg", name);
+
+    IplImage *disp = cvCreateImage(cvSize(p.w,p.h), IPL_DEPTH_8U, p.c);
+    int step = disp->widthStep;
+    for(y = 0; y < p.h; ++y){
+        for(x = 0; x < p.w; ++x){
+            for(k= 0; k < p.c; ++k){
+                disp->imageData[y*step + x*p.c + k] = (unsigned char)(get_pixel(copy,x,y,k)*255);
+            }
+        }
+    }
+    cvSaveImage(name, disp,0);
+    cvReleaseImage(&disp);
+    free_image(copy);
+}
+
+float get_pixel1(image m, int x, int y, int c)
+{
+    return m.data[c*m.h*m.w + y*m.w + x];
+}
+
+void save_image_jpg3(int x, int y, int w, int h, image p, const char *name)
+{
+    image copy = copy_image(p);
+    if(p.c == 3) rgbgr_image(copy);
+    int x1,y1,x2,y2,k;
+
+    IplImage *disp = cvCreateImage(cvSize(w, h), IPL_DEPTH_8U, p.c);
+    int step = disp->widthStep;
+    for(y1 = 0, y2 = y; y1 < h; ++y1, ++y2){
+        for(x1 = 0, x2 = x; x1 < w; ++x1, ++x2){
+            for(k= 0; k < p.c; ++k){
+                disp->imageData[y1*step + x1*p.c + k] = (unsigned char)(get_pixel1(copy,x2,y2,k)*255);
+            }
+        }
+    }
+    cvSaveImage(name, disp,0);
+    cvReleaseImage(&disp);
+    free_image(copy);
+}
+
 #endif
 
 void save_image_png(image im, const char *name)
@@ -630,6 +767,14 @@ void save_image(image im, const char *name)
 #endif
 }
 
+void save_image2(image im, const char *name)
+{
+#ifdef OPENCV
+    save_image_jpg2(im, name);
+#else
+    save_image_png(im, name);
+#endif
+}
 
 void show_image_layers(image p, char *name)
 {
