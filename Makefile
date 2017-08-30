@@ -27,7 +27,7 @@ NVCC=nvcc
 AR=ar
 ARFLAGS=rcs
 OPTS=-Ofast
-LDFLAGS= -lm -pthread 
+LDFLAGS= -lm -pthread # -dl
 COMMON= -Iinclude/ -Isrc/
 CFLAGS=-Wall -Wno-unknown-pragmas -Wfatal-errors -fPIC
 
@@ -36,7 +36,7 @@ CFLAGS+= -fopenmp
 endif
 
 ifeq ($(DEBUG), 1) 
-OPTS=-O0 -g
+OPTS= -g
 endif
 
 CFLAGS+=$(OPTS)
@@ -45,7 +45,7 @@ ifeq ($(OPENCV), 1)
 COMMON+= -DOPENCV
 CFLAGS+= -DOPENCV
 LDFLAGS+= `pkg-config --libs opencv` 
-COMMON+= `pkg-config --cflags opencv` 
+COMMON+= `pkg-config --cflags opencv`
 endif
 
 ifeq ($(GPU), 1) 

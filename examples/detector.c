@@ -579,10 +579,10 @@ int filter_fn(const struct dirent *dirp)
     if(dirp->d_type != DT_REG)
         return 0;
 
-    return (strncmp(dirp->d_name + (strlen(dirp->d_name) - 4), "jpeg", 4) == 0 ||
-            strncmp(dirp->d_name + (strlen(dirp->d_name) - 3), "jpg", 3) == 0 || 
-            strncmp(dirp->d_name + (strlen(dirp->d_name) - 3), "bmp", 3) == 0 ||
-            strncmp(dirp->d_name + (strlen(dirp->d_name) - 3), "png", 3) == 0
+    return (strncasecmp(dirp->d_name + (strlen(dirp->d_name) - 4), "jpeg", 4) == 0 ||
+            strncasecmp(dirp->d_name + (strlen(dirp->d_name) - 3), "jpg", 3) == 0 || 
+            strncasecmp(dirp->d_name + (strlen(dirp->d_name) - 3), "bmp", 3) == 0 ||
+            strncasecmp(dirp->d_name + (strlen(dirp->d_name) - 3), "png", 3) == 0
             );
 }
 
@@ -674,7 +674,7 @@ static void test_singlefile(char *dir, char *infile, char* outfile, char **names
         carimg = copy_image(imclone);
         if(imclone.c == 3) rgbgr_image(carimg);
         sprintf(outfilename, "%s/%s_%d.jpg", infilename, infile, j);
-        printf("saving to file: %s %dx%d\n", outfilename, mybox[j].width, mybox[j].height);
+        //printf("saving to file: %s %dx%d\n", outfilename, mybox[j].width, mybox[j].height);
         save_image_jpg3(mybox[j].x, mybox[j].y, mybox[j].width, mybox[j].height, carimg, outfilename);
         
         free_image(carimg);

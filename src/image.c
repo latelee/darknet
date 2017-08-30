@@ -301,7 +301,7 @@ void draw_detections2(image im, int num, float thresh, box *boxes, float **probs
             if ((!strcmp(names[class], "bus") ||
                 !strcmp(names[class], "car") ||
                 !strcmp(names[class], "truck"))
-                && j < max_box && 1)
+                && j < max_box && prob*100 > 70)
             {
                 mybox->x = left;
                 mybox->y = top;
@@ -309,7 +309,7 @@ void draw_detections2(image im, int num, float thresh, box *boxes, float **probs
                 mybox->height = bot-top;
                 strncpy(mybox->name, names[class], 32);
                 
-                printf("found[%d] %s (%d, %d) %dx%d...\n", j, names[class], mybox->x, mybox->y, mybox->width, mybox->height);
+                //printf("found[%d] %s (%d, %d) %dx%d...\n", j, names[class], mybox->x, mybox->y, mybox->width, mybox->height);
 
                 mybox++;
                 j++;

@@ -44,6 +44,9 @@ $ make -j4
 手动指定输出图片文件示例：
 ./darknet detect cfg/yolo.cfg yolo.weights testimg/pic3.jpg -out testimg/pic3_p.jpg
 
+
+time ./darknet detect cfg/yolo.cfg yolo.weights results/
+
 =============================================================
 
 log：
